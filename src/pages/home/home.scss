@@ -1,0 +1,24 @@
+page-home {
+	.addExpenseButton{
+		color: #23d19f;
+	}
+
+	.mainMenuNavButton{
+		float: right;
+		margin-top: -0.5em;
+		margin-right: -0.5em;
+
+		.menuIcon{
+			color: #23d19f;
+		}
+	}
+
+	h1{
+		font-size: 65px;
+		color: #23d19f;
+	}
+
+	.expensesList{
+		margin-top: 1em;
+	}
+}
