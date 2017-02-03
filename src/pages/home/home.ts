@@ -145,7 +145,7 @@ export class HomePage {
 
 	updateBudgetColor(){
 		var remainingBudgetPercentage = null;
-		if(this.startingBudget != 0){
+		if(this.startingBudget == 0){
 			return;
 		}
 		remainingBudgetPercentage = this.budget / this.startingBudget;
