@@ -21290,9 +21290,8 @@ page-home .mainMenuNavButton .menuIcon {
   color: #23d19f;
 }
 
-page-home h1 {
+page-home #currentBudget {
   font-size: 65px;
-  color: #23d19f;
 }
 
 page-home .expensesList {
