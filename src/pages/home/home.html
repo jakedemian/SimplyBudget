@@ -6,16 +6,22 @@
 	<h1 id="currentBudget" [style.color]="budgetColor">${{budget.toFixed(2)}}</h1>
 
 	<ion-list no-lines class="expensesList">
+
 		<ion-item-divider>
 			Expenses
 			<button class="addExpenseButton" ion-button clear item-right icon-only (click)="addExpense()">
 				<ion-icon name="add"></ion-icon>
 			</button>
 		</ion-item-divider>
-		<ion-item *ngFor="let e of expenses">
+
+		<ion-item *ngFor=" let e of expenses; let i = index " (click)=" e.selected = !e.selected; unselectOtherExpenses(i); ">
+			<button class="itemEditButton" *ngIf="e.selected" ion-button item-left clear (click)="displayItemEditActionSheet(e, i)">
+				<ion-icon name="md-more"></ion-icon>
+			</button>
 			<p item-left>{{e.name}}</p>
 			<p item-right>${{e.cost}}</p>
 		</ion-item>
+
 	</ion-list>
 
 </ion-content>

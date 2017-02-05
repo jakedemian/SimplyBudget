@@ -1,13 +1,8 @@
 import { Component } from '@angular/core';
 
-import { NavController } from 'ionic-angular';
-import { AlertController } from 'ionic-angular';
+import { NavController, ActionSheetController, AlertController, Platform } from 'ionic-angular';
 import { NativeStorage } from 'ionic-native';
-import { Platform } from 'ionic-angular';
 import { DomSanitizer, SafeStyle } from '@angular/platform-browser';
-
-const GREEN_100_HEX = 0x23D19F;
-const RED_0_HEX = 0xD1223A;
 
 @Component({
 	selector: 'page-home',
@@ -19,22 +14,26 @@ export class HomePage {
 	// member vars
 	startingBudget: number;
 	budget: number;
-	expenses: Array<{name: string, cost: string}>;
+	expenses: Array<{name: string, cost: string, selected: boolean}>;
 	isCordova: boolean;
 	nativeStorageAvailable: boolean;
 	budgetColor: SafeStyle;
 
-	constructor(public navCtrl: NavController, public alertCtrl: AlertController, public platform: Platform, private sanitizer: DomSanitizer) {
+	constructor(public navCtrl: NavController, 
+		public alertCtrl: AlertController, 
+		public platform: Platform, 
+		private sanitizer: DomSanitizer,
+		public actionSheetCtrl: ActionSheetController
+	) {
 		this.budget = 0;
 		this.startingBudget = 0;
 		this.expenses = [];
 		this.nativeStorageAvailable = platform.is('cordova');
 		this.budgetColor = this.sanitizer.bypassSecurityTrustStyle('#23d19f');
-		this.updateBudgetColor();
+
+		var _this = this;
 
 		if(this.nativeStorageAvailable){
-			var _this = this;
-
 			NativeStorage.getItem('budget').then(function (loadedBudget) {
 	        	if(!!loadedBudget){
 	        		_this.budget = loadedBudget;
@@ -53,6 +52,14 @@ export class HomePage {
 	        	}
 	      	});
       	}	
+	}
+
+	unselectOtherExpenses(index){
+		for(var i = 0; i < this.expenses.length; i++){
+			if(i != index){
+				this.expenses[i].selected = false;
+			}
+		}
 	}
 
 	confirmNewExpensePeriod() {
@@ -76,14 +83,20 @@ export class HomePage {
 	}
 
 	startExpensePeriod(){
+		var lastBudget = "";
+		if(!!this.startingBudget && this.startingBudget != 0){
+			lastBudget = this.startingBudget.toString();
+		}
+
 		let prompt = this.alertCtrl.create({
 			title: 'Enter Budget',
 			message: "Enter the budget you are allocating to this expense period.",
 			inputs:[
 				{
 		        	name: 'budget',
-		        	placeholder: 'Budget'
-		        }
+		        	type: "number",
+		        	placeholder: 'Budget',
+		        	value: lastBudget		        }
 			],
 			buttons: [
 				{
@@ -92,7 +105,6 @@ export class HomePage {
 						this.budget = Number(data.budget);
 						this.startingBudget = Number(data.budget);
 						this.expenses = [];
-						this.updateBudgetColor();
 
 						if(this.nativeStorageAvailable){
 							NativeStorage.setItem('budget', this.budget);
@@ -108,8 +120,8 @@ export class HomePage {
 
 	addExpense() {
 		let prompt = this.alertCtrl.create({
-			title: 'New Expense Period',
-			message: "Are you sure you wish to delete current period data and begin a new expense period?",
+			title: 'Add Expense',
+			message: "Enter the expense information.",
 			inputs:[
 				{
 		        	name: 'name',
@@ -117,20 +129,21 @@ export class HomePage {
 		        },
 		        {
 		        	name: 'cost',
+		        	type: "number",
 		        	placeholder: '$'
 		        }
 			],
 			buttons: [
 				{
 					text: 'Cancel',
+					role: 'cancel',
 					handler: () => {} // do nothing
 				},
 				{
 					text: 'Add',
 					handler: data => {
 						this.budget -= data.cost;
-						this.expenses.push({name: data.name, cost: data.cost});
-						this.updateBudgetColor();
+						this.expenses.push({name: data.name, cost: Number(data.cost).toFixed(2), selected: false});
 
 						if(this.nativeStorageAvailable){
 							NativeStorage.setItem('budget', this.budget);
@@ -143,17 +156,97 @@ export class HomePage {
 		prompt.present();
 	}
 
-	updateBudgetColor(){
-		var remainingBudgetPercentage = null;
-		if(this.startingBudget == 0){
-			return;
-		}
-		remainingBudgetPercentage = this.budget / this.startingBudget;
+	editExpense(item, index){
+		var budgetWithoutThisItem = this.budget + Number(item.cost);
+		let prompt = this.alertCtrl.create({
+			title: 'Edit Expense',
+			message: "Modify this expense's information.",
+			inputs:[
+				{
+		        	name: 'name',
+		        	value: item.name,
+		        	placeholder: 'Expense Description'
+		        },
+		        {
+		        	name: 'cost',
+		        	value: item.cost,
+		        	type: "number",
+		        	placeholder: '$'
+		        }
+			],
+			buttons: [
+				{
+					text: 'Cancel',
+					role: 'cancel',
+					handler: () => {} // do nothing
+				},
+				{
+					text: 'Confirm',
+					handler: data => {
+						if(data.cost != item.cost){
+							this.budget = budgetWithoutThisItem - Number(data.cost);
+						}
+						this.expenses[index] = {name: data.name, cost: Number(data.cost).toFixed(2), selected: false};
 
-		// TODO FIXME come up with an algorithm to "calculate" the color 
-		// of the budget based on how much is remaining
-
-		this.budgetColor = this.sanitizer.bypassSecurityTrustStyle('#23d19f');
+						if(this.nativeStorageAvailable){
+							NativeStorage.setItem('budget', this.budget);
+							NativeStorage.setItem('expenses', this.expenses);
+						}
+					}
+				}
+			]
+		});
+		prompt.present();
 	}
 
+	displayItemEditActionSheet(item, index){
+		let actionSheet = this.actionSheetCtrl.create({
+			title: 'Modify this expense',
+			buttons: [
+				{
+				  text: 'Edit',
+				  handler: () => {
+				    this.editExpense(item, index);
+				  }
+				},{
+				  text: 'Delete',
+				  role: 'destructive',
+				  handler: () => {
+				  	this.displayDeleteItemConfirm(item, index);
+				  }
+				},{
+				  text: 'Cancel',
+				  role: 'cancel',
+				  handler: () => { // do nothing
+				  }
+				}
+			]
+		});
+		actionSheet.present();
+	}
+
+	displayDeleteItemConfirm(item, index){
+		let prompt = this.alertCtrl.create({
+			title: 'Delete item',
+			message: 'Are you sure you wish to delete the item:  ' + item.name + '?',
+			buttons: [
+				{
+					text: 'No',
+					handler: () => {} // do nothing
+				},
+				{
+					text: 'Yes',
+					handler: () => {
+						this.deleteItem(item, index);
+					}
+				}
+			]
+		});
+		prompt.present();
+	}
+
+	deleteItem(item, index){
+		this.budget += Number(item.cost);
+		this.expenses.splice(index, 1);
+	}
 }
